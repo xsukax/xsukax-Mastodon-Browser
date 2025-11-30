@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xsukax Mastodon Browser</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'JetBrains Mono', monospace; background: #0a0a0a; color: #00ff00; line-height: 1.6; }
+.container { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+.header { background: #0f0f0f; border-bottom: 1px solid #00ff00; padding: 16px 0; position: sticky; top: 0; z-index: 50; }
+.post { background: #0f0f0f; border: 1px solid #1a1a1a; border-left: 2px solid #00ff00; padding: 16px; margin-bottom: 12px; transition: all 0.2s; }
+.post:hover { border-left-color: #00ff00; background: #111; }
+.post.single-post { border: 1px solid #00ff00; border-left: 3px solid #00ff00; padding: 24px; }
+.avatar { border-radius: 2px; border: 1px solid #00ff00; width: 48px; height: 48px; object-fit: cover; flex-shrink: 0; filter: grayscale(30%); }
+.avatar-large { border-radius: 2px; border: 2px solid #00ff00; width: 100px; height: 100px; object-fit: cover; filter: grayscale(30%); }
+.avatar-clickable { cursor: pointer; transition: all 0.2s; display: block; }
+.avatar-clickable:hover { filter: grayscale(0%); box-shadow: 0 0 8px rgba(0, 255, 0, 0.4); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.95); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: #0f0f0f; border: 1px solid #00ff00; padding: 24px; max-width: 500px; width: 90%; }
+.notification { position: fixed; top: 20px; right: 20px; background: #0f0f0f; border: 1px solid #1a1a1a; border-left: 3px solid #00ff00; padding: 12px 16px; z-index: 200; animation: slideIn 0.3s ease-out; max-width: 350px; font-size: 12px; }
+.notification.success { border-left-color: #00ff00; color: #00ff00; }
+.notification.error { border-left-color: #ff0000; color: #ff0000; }
+.notification.info { border-left-color: #00ffff; color: #00ffff; }
+@keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.btn { background: transparent; color: #00ff00; border: 1px solid #00ff00; padding: 8px 16px; cursor: pointer; font-weight: 500; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; font-size: 13px; text-transform: uppercase; }
+.btn:hover { background: #00ff00; color: #0a0a0a; }
+.btn-small { padding: 4px 10px; font-size: 11px; }
+.btn-secondary { color: #666; border-color: #333; }
+.btn-secondary:hover { background: #1a1a1a; color: #00ff00; border-color: #00ff00; }
+.input { background: #0a0a0a; border: 1px solid #333; padding: 8px 12px; width: 100%; font-size: 13px; outline: none; transition: all 0.2s; color: #00ff00; font-family: 'JetBrains Mono', monospace; }
+.input:focus { border-color: #00ff00; }
+.input::placeholder { color: #444; }
+.loading { border: 2px solid #1a1a1a; border-top: 2px solid #00ff00; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin: 20px auto; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.post-content { line-height: 1.6; word-wrap: break-word; color: #aaa; }
+.post-content a { color: #00ffff; text-decoration: none; }
+.post-content a:hover { text-decoration: underline; }
+.post-content a.hashtag { color: #ff00ff; font-weight: 500; }
+.post-content a.hashtag:hover { text-shadow: 0 0 8px rgba(255, 0, 255, 0.6); }
+.post-content a.mention { color: #00ff00; }
+.post-content a.mention:hover { text-shadow: 0 0 8px rgba(0, 255, 0, 0.6); }
+.post-content img.custom-emoji { display: inline-block; width: 1.2em; height: 1.2em; vertical-align: middle; margin: 0 0.1em; }
+.post-image { max-width: 100%; height: auto; margin-top: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid #1a1a1a; filter: grayscale(20%); }
+.post-image:hover { filter: grayscale(0%); border-color: #00ff00; }
+.stats-item { display: inline-flex; align-items: center; margin-right: 16px; color: #666; font-size: 12px; }
+.stats-item.clickable { cursor: pointer; transition: all 0.2s; }
+.stats-item.clickable:hover { color: #00ff00; }
+.hidden { display: none; }
+.badge { background: #1a1a1a; color: #00ffff; padding: 2px 6px; font-size: 10px; font-weight: 500; border: 1px solid #00ffff; text-transform: uppercase; }
+.user-link { cursor: pointer; transition: all 0.2s; color: #00ff00; text-decoration: none; }
+.user-link:hover { text-shadow: 0 0 8px rgba(0, 255, 0, 0.6); }
+a.user-link { display: inline-block; }
+a.avatar-link { display: block; line-height: 0; }
+.profile-header { background: #0f0f0f; border: 1px solid #1a1a1a; border-left: 2px solid #00ff00; padding: 24px; margin-bottom: 16px; }
+.stat-box { text-align: center; padding: 8px 16px; background: #0a0a0a; border: 1px solid #1a1a1a; }
+.stat-number { font-size: 18px; font-weight: bold; color: #00ff00; }
+.stat-label { font-size: 10px; color: #666; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+.back-btn { background: transparent; color: #00ff00; border: 1px solid #333; padding: 6px 12px; cursor: pointer; font-size: 12px; transition: all 0.2s; font-family: 'JetBrains Mono', monospace; }
+.back-btn:hover { border-color: #00ff00; }
+.tab { padding: 8px 16px; cursor: pointer; border-bottom: 1px solid transparent; transition: all 0.2s; color: #666; font-size: 12px; text-transform: uppercase; }
+.tab.active { border-bottom-color: #00ff00; color: #00ff00; }
+.prompt { color: #00ff00; }
+.dim { color: #666; }
+.cyan { color: #00ffff; }
+.magenta { color: #ff00ff; }
+.profile-username { color: #666; font-size: 13px; font-weight: normal; }
+.scanline { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.1) 0px, rgba(0, 0, 0, 0.1) 1px, transparent 1px, transparent 2px); z-index: 1000; }
+.post-meta { background: #0a0a0a; border: 1px solid #1a1a1a; padding: 12px; margin-top: 16px; font-size: 11px; }
+.tag-header { background: #0f0f0f; border: 1px solid #1a1a1a; border-left: 2px solid #ff00ff; padding: 20px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<div class="header">
+    <div class="container">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-3">
+                <button id="backBtn" class="back-btn hidden">&lt; BACK</button>
+                <div class="flex items-center gap-2">
+                    <span class="prompt text-xl">[</span>
+                    <span class="text-lg font-bold">XSUKAX_MASTODON_BROWSER</span>
+                    <span class="prompt text-xl">]</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-1 max-w-md">
+                <span class="prompt hidden md:inline">$&gt;</span>
+                <div class="flex-1">
+                    <input type="text" id="instanceInput" class="input" placeholder="instance.social" list="instanceList" value="">
+                    <datalist id="instanceList">
+                        <option value="mastodon.social"></option>
+                        <option value="mstdn.jp"></option>
+                        <option value="mastodon.cloud"></option>
+                        <option value="mstdn.social"></option>
+                        <option value="mastodon.world"></option>
+                        <option value="techhub.social"></option>
+                        <option value="infosec.exchange"></option>
+                        <option value="mastodon.uno"></option>
+                        <option value="mastodon.sdf.org"></option>
+                        <option value="social.vivaldi.net"></option>
+                        <option value="c.im"></option>
+                        <option value="mstdn.party"></option>
+                        <option value="fosstodon.org"></option>
+                        <option value="hachyderm.io"></option>
+                        <option value="chaos.social"></option>
+                    </datalist>
+                </div>
+                <button id="loadBtn" class="btn">EXEC</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-6">
+    <div id="errorModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2 class="text-lg font-bold mb-4 prompt">[ERROR]</h2>
+            <p id="errorMessage" class="mb-6 dim"></p>
+            <button id="closeModal" class="btn">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="welcomeScreen" class="text-center py-16">
+        <pre class="prompt text-xs mb-6">
+ __  __    _    ____ _____ ___  ____   ___  _   _ 
+|  \/  |  / \  / ___|_   _/ _ \|  _ \ / _ \| \ | |
+| |\/| | / _ \ \___ \ | || | | | | | | | | |  \| |
+| |  | |/ ___ \ ___) || || |_| | |_| | |_| | |\  |
+|_|  |_/_/   \_\____/ |_| \___/|____/ \___/|_| \_|
+        </pre>
+        <p class="dim mb-8">FEDERATED TIMELINE BROWSER</p>
+        <div class="bg-[#0f0f0f] border border-[#1a1a1a] p-6 max-w-xl mx-auto text-left text-sm">
+            <p class="mb-3"><span class="prompt">$</span> <span class="cyan">USAGE:</span></p>
+            <p class="mb-2 ml-4 dim">1. Select instance from dropdown or type custom</p>
+            <p class="mb-2 ml-4 dim">2. Press EXEC to load public timeline</p>
+            <p class="mb-4 ml-4 dim">3. Click username/hashtag to explore</p>
+            <p class="mb-2"><span class="prompt">$</span> <span class="cyan">URL_PARAMS:</span></p>
+            <p class="mb-1 ml-4 dim">?instance=mastodon.social</p>
+            <p class="mb-1 ml-4 dim">?instance=masto.ai&user=username</p>
+            <p class="mb-1 ml-4 dim">?instance=masto.ai&user=username&post=123</p>
+            <p class="ml-4 dim">?instance=mastodon.social&tag=opensource</p>
+        </div>
+    </div>
+
+    <div id="loadingIndicator" class="hidden">
+        <div class="loading"></div>
+        <p class="text-center dim mt-4 text-sm">[LOADING...]</p>
+    </div>
+
+    <div id="postView" class="hidden">
+        <div id="postContent"></div>
+    </div>
+
+    <div id="profileView" class="hidden">
+        <div id="profileContent"></div>
+    </div>
+
+    <div id="tagView" class="hidden">
+        <div id="tagHeader"></div>
+        <div id="tagPosts"></div>
+        <div id="tagLoadMoreContainer" class="text-center py-8 hidden">
+            <button id="tagLoadMoreBtn" class="btn-secondary btn">LOAD_MORE</button>
+        </div>
+    </div>
+
+    <div id="timelineView">
+        <div id="timeline"></div>
+        <div id="loadMoreContainer" class="text-center py-8 hidden">
+            <button id="loadMoreBtn" class="btn-secondary btn">LOAD_MORE</button>
+        </div>
+    </div>
+</div>
+
+<script>
+class MastodonBrowser {
+    constructor() {
+        this.instance = '';
+        this.maxId = null;
+        this.loading = false;
+        this.currentView = 'timeline';
+        this.currentProfile = null;
+        this.profileMaxId = null;
+        this.userHomeInstance = null;
+        this.previousView = null;
+        this.currentTag = null;
+        this.tagMaxId = null;
+
+        this.elements = {
+            instanceInput: document.getElementById('instanceInput'),
+            loadBtn: document.getElementById('loadBtn'),
+            timeline: document.getElementById('timeline'),
+            welcomeScreen: document.getElementById('welcomeScreen'),
+            loadingIndicator: document.getElementById('loadingIndicator'),
+            errorModal: document.getElementById('errorModal'),
+            errorMessage: document.getElementById('errorMessage'),
+            closeModal: document.getElementById('closeModal'),
+            loadMoreBtn: document.getElementById('loadMoreBtn'),
+            loadMoreContainer: document.getElementById('loadMoreContainer'),
+            backBtn: document.getElementById('backBtn'),
+            profileView: document.getElementById('profileView'),
+            profileContent: document.getElementById('profileContent'),
+            timelineView: document.getElementById('timelineView'),
+            postView: document.getElementById('postView'),
+            postContent: document.getElementById('postContent'),
+            tagView: document.getElementById('tagView'),
+            tagHeader: document.getElementById('tagHeader'),
+            tagPosts: document.getElementById('tagPosts'),
+            tagLoadMoreBtn: document.getElementById('tagLoadMoreBtn'),
+            tagLoadMoreContainer: document.getElementById('tagLoadMoreContainer')
+        };
+
+        this.init();
+    }
+
+    init() {
+        this.elements.loadBtn.addEventListener('click', () => this.loadTimeline());
+        this.elements.closeModal.addEventListener('click', () => this.hideModal());
+        this.elements.loadMoreBtn.addEventListener('click', () => this.loadMore());
+        this.elements.backBtn.addEventListener('click', () => this.goBack());
+        this.elements.tagLoadMoreBtn.addEventListener('click', () => this.loadTagTimeline(this.currentTag, true));
+
+        this.elements.instanceInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.loadTimeline();
+        });
+
+        window.addEventListener('popstate', () => this.handleUrlChange());
+
+        this.handleUrlChange();
+    }
+
+    handleUrlChange() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const instanceParam = urlParams.get('instance');
+        const userParam = urlParams.get('user');
+        const postParam = urlParams.get('post');
+        const tagParam = urlParams.get('tag');
+
+        if (instanceParam) {
+            this.elements.instanceInput.value = instanceParam;
+            this.instance = this.sanitizeInstance(instanceParam);
+
+            if (postParam && userParam) {
+                this.loadSinglePost(instanceParam, userParam, postParam);
+            } else if (tagParam) {
+                this.loadTagTimeline(tagParam);
+            } else if (userParam) {
+                this.loadUserProfileByAcct(userParam);
+            } else {
+                this.loadTimeline();
+            }
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = `[${type.toUpperCase()}] ${message}`;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    showModal(message) {
+        this.elements.errorMessage.textContent = message;
+        this.elements.errorModal.classList.remove('hidden');
+    }
+
+    hideModal() {
+        this.elements.errorModal.classList.add('hidden');
+    }
+
+    sanitizeInstance(instance) {
+        instance = instance.trim().toLowerCase();
+        instance = instance.replace(/^https?:\/\//, '');
+        instance = instance.replace(/\/$/, '');
+        instance = instance.split(' ')[0];
+        return instance;
+    }
+
+    parseAcct(acct, defaultInstance) {
+        if (acct.includes('@')) {
+            const parts = acct.split('@');
+            return {
+                username: parts[0],
+                instance: parts[1] || defaultInstance
+            };
+        }
+        return {
+            username: acct,
+            instance: defaultInstance
+        };
+    }
+
+    getProfileUrl(acct, defaultInstance) {
+        const parsed = this.parseAcct(acct, defaultInstance);
+        return `?instance=${parsed.instance}&user=${parsed.username}`;
+    }
+
+    getPostUrl(acct, postId, defaultInstance) {
+        const parsed = this.parseAcct(acct, defaultInstance);
+        return `?instance=${parsed.instance}&user=${parsed.username}&post=${postId}`;
+    }
+
+    getTagUrl(tag, instance) {
+        return `?instance=${instance}&tag=${encodeURIComponent(tag)}`;
+    }
+
+    hideAllViews() {
+        this.elements.timelineView.classList.add('hidden');
+        this.elements.profileView.classList.add('hidden');
+        this.elements.postView.classList.add('hidden');
+        this.elements.tagView.classList.add('hidden');
+        this.elements.welcomeScreen.classList.add('hidden');
+        this.elements.loadMoreContainer.classList.add('hidden');
+        this.elements.tagLoadMoreContainer.classList.add('hidden');
+    }
+
+    showTimeline() {
+        this.previousView = null;
+        this.currentView = 'timeline';
+        this.hideAllViews();
+        this.elements.timelineView.classList.remove('hidden');
+        this.elements.backBtn.classList.add('hidden');
+
+        if (this.instance) {
+            window.history.pushState({}, '', `?instance=${this.instance}`);
+        }
+    }
+
+    showProfile() {
+        this.previousView = this.currentView;
+        this.currentView = 'profile';
+        this.hideAllViews();
+        this.elements.profileView.classList.remove('hidden');
+        this.elements.backBtn.classList.remove('hidden');
+    }
+
+    showPostView() {
+        this.previousView = this.currentView;
+        this.currentView = 'post';
+        this.hideAllViews();
+        this.elements.postView.classList.remove('hidden');
+        this.elements.backBtn.classList.remove('hidden');
+    }
+
+    showTagView() {
+        this.previousView = this.currentView;
+        this.currentView = 'tag';
+        this.hideAllViews();
+        this.elements.tagView.classList.remove('hidden');
+        this.elements.backBtn.classList.remove('hidden');
+    }
+
+    goBack() {
+        if (this.currentView === 'post' && this.previousView === 'profile') {
+            this.elements.postView.classList.add('hidden');
+            this.elements.profileView.classList.remove('hidden');
+            this.currentView = 'profile';
+
+            if (this.currentProfile) {
+                const parsed = this.parseAcct(this.currentProfile.acct, this.instance);
+                window.history.pushState({}, '', `?instance=${parsed.instance}&user=${parsed.username}`);
+            }
+        } else if (this.currentView === 'post' && this.previousView === 'tag') {
+            this.elements.postView.classList.add('hidden');
+            this.elements.tagView.classList.remove('hidden');
+            this.elements.tagLoadMoreContainer.classList.remove('hidden');
+            this.currentView = 'tag';
+
+            if (this.currentTag) {
+                window.history.pushState({}, '', `?instance=${this.instance}&tag=${this.currentTag}`);
+            }
+        } else {
+            this.showTimeline();
+        }
+    }
+
+    async loadTagTimeline(tag, append = false) {
+        if (this.loading) return;
+
+        this.loading = true;
+        this.currentTag = tag;
+
+        if (!append) {
+            this.tagMaxId = null;
+            this.showTagView();
+            this.elements.tagPosts.innerHTML = '';
+            this.renderTagHeader(tag);
+        }
+
+        this.elements.loadingIndicator.classList.remove('hidden');
+
+        try {
+            const url = `https://${this.instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=40${this.tagMaxId ? '&max_id=' + this.tagMaxId : ''}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch tag timeline (${response.status})`);
+            }
+
+            const posts = await response.json();
+
+            if (posts.length === 0) {
+                if (!append) {
+                    this.elements.tagPosts.innerHTML = '<p class="text-center dim py-8 text-sm">[NO_POSTS_FOUND]</p>';
+                }
+                this.elements.tagLoadMoreContainer.classList.add('hidden');
+                this.showNotification('No more posts', 'info');
+            } else {
+                const fragment = document.createDocumentFragment();
+                posts.forEach(post => {
+                    fragment.appendChild(this.createPostElement(post, this.instance));
+                });
+                this.elements.tagPosts.appendChild(fragment);
+                this.tagMaxId = posts[posts.length - 1].id;
+                this.elements.tagLoadMoreContainer.classList.remove('hidden');
+
+                if (!append) {
+                    window.history.pushState({}, '', `?instance=${this.instance}&tag=${tag}`);
+                    this.showNotification(`Loaded #${tag}`, 'success');
+                }
+            }
+        } catch (error) {
+            this.showModal(`Failed to load hashtag #${tag}. Check if the instance supports this tag.`);
+            this.showTimeline();
+        } finally {
+            this.elements.loadingIndicator.classList.add('hidden');
+            this.loading = false;
+        }
+    }
+
+    renderTagHeader(tag) {
+        this.elements.tagHeader.innerHTML = `
+            <div class="tag-header">
+                <div class="flex items-center gap-4">
+                    <span class="text-3xl magenta">#</span>
+                    <div>
+                        <h2 class="text-xl font-bold magenta">#${this.escapeHtml(tag)}</h2>
+                        <p class="dim text-xs mt-1">Posts from ${this.instance}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async loadSinglePost(instance, user, postId) {
+        if (this.loading) return;
+
+        this.loading = true;
+        this.showPostView();
+        this.elements.postContent.innerHTML = '';
+        this.elements.loadingIndicator.classList.remove('hidden');
+
+        try {
+            const targetInstance = this.sanitizeInstance(instance);
+            let post = null;
+
+            try {
+                const statusUrl = `https://${targetInstance}/api/v1/statuses/${postId}`;
+                const statusResponse = await fetch(statusUrl);
+
+                if (statusResponse.ok) {
+                    post = await statusResponse.json();
+                }
+            } catch (e) {}
+
+            if (!post) {
+                try {
+                    const lookupUrl = `https://${targetInstance}/api/v1/accounts/lookup?acct=${encodeURIComponent(user)}`;
+                    const lookupResponse = await fetch(lookupUrl);
+
+                    if (lookupResponse.ok) {
+                        const account = await lookupResponse.json();
+                        const statusesUrl = `https://${targetInstance}/api/v1/accounts/${account.id}/statuses?limit=40`;
+                        const statusesResponse = await fetch(statusesUrl);
+
+                        if (statusesResponse.ok) {
+                            const statuses = await statusesResponse.json();
+                            post = statuses.find(s => s.id === postId);
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (post) {
+                this.renderSinglePost(post, targetInstance);
+                window.history.pushState({}, '', `?instance=${targetInstance}&user=${user}&post=${postId}`);
+                this.showNotification(`Loaded post: ${postId}`, 'success');
+            } else {
+                throw new Error('Post not found');
+            }
+        } catch (error) {
+            this.showModal(`Failed to load post. The post may not exist or the instance is unavailable.`);
+            this.showTimeline();
+        } finally {
+            this.elements.loadingIndicator.classList.add('hidden');
+            this.loading = false;
+        }
+    }
+
+    renderSinglePost(post, instance) {
+        const account = post.reblog ? post.reblog.account : post.account;
+        const content = post.reblog ? post.reblog : post;
+        const parsed = this.parseAcct(account.acct, instance);
+        const profileUrl = this.getProfileUrl(account.acct, instance);
+        const displayName = this.parseContent(account.display_name || account.username, account.emojis);
+
+        const mediaHTML = content.media_attachments.length > 0
+            ? content.media_attachments.map(media => {
+                if (media.type === 'image') {
+                    return `<img src="${media.preview_url || media.url}" alt="${this.escapeHtml(media.description || 'Image')}" class="post-image" loading="lazy" onclick="window.open('${media.url}', '_blank')">`;
+                }
+                return '';
+            }).join('')
+            : '';
+
+        const visibilityBadge = content.visibility !== 'public'
+            ? `<span class="badge ml-2">${content.visibility}</span>`
+            : '';
+
+        let reblogHTML = '';
+        if (post.reblog) {
+            const boosterName = this.parseContent(post.account.display_name || post.account.username, post.account.emojis);
+            const boosterUrl = this.getProfileUrl(post.account.acct, instance);
+            reblogHTML = `<div class="text-xs dim mb-4 pb-4 border-b border-[#1a1a1a]"><span class="prompt">>></span> <a href="${boosterUrl}" class="user-link">${boosterName}</a> boosted</div>`;
+        }
+
+        this.elements.postContent.innerHTML = `
+            <article class="post single-post">
+                ${reblogHTML}
+                <div class="flex gap-4">
+                    <a href="${profileUrl}" class="avatar-link">
+                        <img src="${account.avatar}" alt="${this.escapeHtml(account.username)}" class="avatar-large avatar-clickable" loading="lazy">
+                    </a>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-2">
+                            <a href="${profileUrl}" class="font-semibold user-link text-base">${displayName}</a>
+                            <a href="${profileUrl}" class="dim text-sm user-link">@${this.escapeHtml(parsed.username)}@${parsed.instance}</a>
+                            ${visibilityBadge}
+                        </div>
+                        <div class="post-content mb-4 text-base">${this.parseContent(content.content, content.emojis, instance)}</div>
+                        ${mediaHTML}
+                        <div class="mt-4 pt-4 border-t border-[#1a1a1a]">
+                            <span class="stats-item">replies: ${content.replies_count}</span>
+                            <span class="stats-item">boosts: ${content.reblogs_count}</span>
+                            <span class="stats-item">favs: ${content.favourites_count}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="post-meta">
+                    <span class="prompt">$</span> <span class="dim">posted:</span> ${new Date(content.created_at).toLocaleString()}
+                    <span class="dim ml-4">|</span>
+                    <span class="dim ml-4">id:</span> <span class="cyan">${content.id}</span>
+                    <span class="dim ml-4">|</span>
+                    <a href="${content.url}" target="_blank" class="cyan ml-4 hover:underline">> view_on_instance</a>
+                </div>
+            </article>
+        `;
+
+        this.bindContentLinks(this.elements.postContent, instance);
+    }
+
+    async loadUserProfileByAcct(acct) {
+        if (this.loading) return;
+
+        this.loading = true;
+        this.showProfile();
+        this.elements.profileContent.innerHTML = '';
+        this.elements.loadingIndicator.classList.remove('hidden');
+        this.elements.welcomeScreen.classList.add('hidden');
+
+        try {
+            let account = null;
+            const parsed = this.parseAcct(acct, this.instance);
+            const userInstance = parsed.instance;
+            const username = parsed.username;
+
+            this.userHomeInstance = userInstance;
+            this.instance = userInstance;
+            this.elements.instanceInput.value = userInstance;
+
+            try {
+                const lookupUrl = `https://${userInstance}/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`;
+                const lookupResponse = await fetch(lookupUrl);
+
+                if (lookupResponse.ok) {
+                    account = await lookupResponse.json();
+                }
+            } catch (e) {}
+
+            if (!account) {
+                try {
+                    const searchUrl = `https://${userInstance}/api/v2/search?q=${encodeURIComponent(username)}&resolve=true&limit=10&type=accounts`;
+                    const searchResponse = await fetch(searchUrl);
+
+                    if (searchResponse.ok) {
+                        const searchData = await searchResponse.json();
+                        if (searchData.accounts && searchData.accounts.length > 0) {
+                            account = searchData.accounts.find(acc => {
+                                return acc.username.toLowerCase() === username.toLowerCase();
+                            }) || searchData.accounts[0];
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (account) {
+                this.currentProfile = account;
+                this.profileMaxId = null;
+                this.renderProfileHeader(account, userInstance);
+                await this.loadUserPosts(account.id, false, userInstance);
+
+                window.history.pushState({}, '', `?instance=${userInstance}&user=${username}`);
+                this.showNotification(`Loaded: @${username}@${userInstance}`, 'success');
+            } else {
+                throw new Error('User not found');
+            }
+        } catch (error) {
+            this.showModal(`Failed to load "@${acct}". Check the username and instance.`);
+            this.showTimeline();
+        } finally {
+            this.elements.loadingIndicator.classList.add('hidden');
+            this.loading = false;
+        }
+    }
+
+    async loadUserProfile(accountId, accountAcct) {
+        this.loadUserProfileByAcct(accountAcct);
+    }
+
+    async loadUserPosts(userId, append = false, fetchInstance = null) {
+        try {
+            const instanceToUse = fetchInstance || this.instance;
+            const postsUrl = `https://${instanceToUse}/api/v1/accounts/${userId}/statuses?limit=40${this.profileMaxId ? '&max_id=' + this.profileMaxId : ''}`;
+            const postsResponse = await fetch(postsUrl);
+
+            if (!postsResponse.ok) {
+                throw new Error('Failed to fetch user posts');
+            }
+
+            const posts = await postsResponse.json();
+            const postsContainer = document.getElementById('userPosts');
+
+            if (postsContainer) {
+                if (!append) {
+                    postsContainer.innerHTML = '';
+                }
+
+                if (posts.length === 0) {
+                    if (!append) {
+                        postsContainer.innerHTML = '<p class="text-center dim py-8 text-sm">[NO_POSTS_FOUND]</p>';
+                    }
+                    const loadMoreBtn = document.getElementById('profileLoadMore');
+                    if (loadMoreBtn) loadMoreBtn.classList.add('hidden');
+                } else {
+                    const fragment = document.createDocumentFragment();
+                    posts.forEach(post => {
+                        fragment.appendChild(this.createPostElement(post, instanceToUse));
+                    });
+                    postsContainer.appendChild(fragment);
+                    this.profileMaxId = posts[posts.length - 1].id;
+
+                    const loadMoreBtn = document.getElementById('profileLoadMore');
+                    if (loadMoreBtn) loadMoreBtn.classList.remove('hidden');
+                }
+            }
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    renderProfileHeader(account, instance) {
+        const bioHtml = account.note ? this.parseContent(account.note, account.emojis, instance) : '<p class="dim">[NO_BIO]</p>';
+
+        const fields = account.fields && account.fields.length > 0
+            ? account.fields.map(field => `
+                <div class="flex gap-2 py-2 border-b border-[#1a1a1a]">
+                    <div class="font-semibold prompt w-28 flex-shrink-0 text-xs">${this.escapeHtml(field.name)}:</div>
+                    <div class="flex-1 dim text-sm">${this.parseContent(field.value, account.emojis, instance)}</div>
+                </div>
+            `).join('')
+            : '';
+
+        const displayName = this.parseContent(account.display_name || account.username, account.emojis);
+        const fullAcct = `${account.username}@${instance}`;
+
+        this.elements.profileContent.innerHTML = `
+            <div class="profile-header">
+                <div class="flex items-start gap-6 mb-6 pb-6 border-b border-[#1a1a1a]">
+                    <img src="${account.avatar}" alt="${this.escapeHtml(account.username)}" class="avatar-large bg-[#0a0a0a]">
+                    <div class="flex-1">
+                        <h2 class="text-xl font-bold mb-1 prompt">${displayName}</h2>
+                        <p class="profile-username mb-4">@${this.escapeHtml(fullAcct)}</p>
+                        <div class="flex gap-3 flex-wrap">
+                            <div class="stat-box">
+                                <div class="stat-number">${this.formatNumber(account.statuses_count)}</div>
+                                <div class="stat-label">Posts</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number">${this.formatNumber(account.following_count)}</div>
+                                <div class="stat-label">Following</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-number">${this.formatNumber(account.followers_count)}</div>
+                                <div class="stat-label">Followers</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4 text-sm" id="profileBio">${bioHtml}</div>
+                ${fields ? `<div class="mb-4" id="profileFields">${fields}</div>` : ''}
+                <div class="pt-4 border-t border-[#1a1a1a] text-xs dim">
+                    <span class="prompt">$</span> joined ${new Date(account.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    ${account.url ? `<a href="${account.url}" target="_blank" class="ml-4 cyan hover:underline">> view_on_instance</a>` : ''}
+                </div>
+            </div>
+            <div class="bg-[#0f0f0f] border border-[#1a1a1a] p-3 mb-4">
+                <div class="flex gap-4 border-b border-[#1a1a1a]">
+                    <div class="tab active">[POSTS]</div>
+                </div>
+            </div>
+            <div id="userPosts"></div>
+            <div id="profileLoadMore" class="text-center py-8 hidden">
+                <button class="btn-secondary btn" onclick="mastodonBrowser.loadUserPosts('${account.id}', true, '${instance}')">LOAD_MORE</button>
+            </div>
+        `;
+
+        this.bindContentLinks(this.elements.profileContent, instance);
+    }
+
+    formatNumber(num) {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toString();
+    }
+
+    async loadTimeline(append = false) {
+        if (this.loading) return;
+
+        const instance = this.sanitizeInstance(this.elements.instanceInput.value);
+
+        if (!instance) {
+            this.showModal('Enter a Mastodon instance URL');
+            return;
+        }
+
+        this.loading = true;
+        this.instance = instance;
+        this.hideAllViews();
+        this.elements.timelineView.classList.remove('hidden');
+        this.elements.backBtn.classList.add('hidden');
+        this.currentView = 'timeline';
+
+        if (!append) {
+            this.maxId = null;
+            this.elements.timeline.innerHTML = '';
+        }
+
+        this.elements.loadingIndicator.classList.remove('hidden');
+
+        try {
+            const url = `https://${instance}/api/v1/timelines/public?limit=40${this.maxId ? '&max_id=' + this.maxId : ''}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch timeline (${response.status})`);
+            }
+
+            const posts = await response.json();
+
+            if (posts.length === 0) {
+                this.showNotification('No more posts', 'info');
+                this.elements.loadMoreContainer.classList.add('hidden');
+            } else {
+                this.renderPosts(posts, instance);
+                this.maxId = posts[posts.length - 1].id;
+                this.elements.loadMoreContainer.classList.remove('hidden');
+
+                if (!append) {
+                    this.showNotification(`Connected: ${instance}`, 'success');
+                    window.history.pushState({}, '', `?instance=${instance}`);
+                }
+            }
+        } catch (error) {
+            this.showModal(`Failed to connect to ${instance}. Check if the instance is accessible.`);
+            this.elements.welcomeScreen.classList.remove('hidden');
+        } finally {
+            this.elements.loadingIndicator.classList.add('hidden');
+            this.loading = false;
+        }
+    }
+
+    loadMore() {
+        if (this.currentView === 'timeline') {
+            this.loadTimeline(true);
+        }
+    }
+
+    parseContent(content, emojis = [], currentInstance = null) {
+        if (!content) return '';
+
+        const div = document.createElement('div');
+        div.innerHTML = content;
+
+        if (emojis && emojis.length > 0) {
+            emojis.forEach(emoji => {
+                const shortcode = `:${emoji.shortcode}:`;
+                const regex = new RegExp(shortcode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                div.innerHTML = div.innerHTML.replace(regex, `<img src="${emoji.url}" alt="${emoji.shortcode}" class="custom-emoji" title=":${emoji.shortcode}:" loading="lazy">`);
+            });
+        }
+
+        const instance = currentInstance || this.instance;
+
+        div.querySelectorAll('a').forEach(link => {
+            const href = link.getAttribute('href') || '';
+            const text = link.textContent || '';
+            const rel = link.getAttribute('rel') || '';
+
+            if (text.startsWith('#') || href.includes('/tags/') || rel.includes('tag')) {
+                let tagName = '';
+
+                if (text.startsWith('#')) {
+                    tagName = text.substring(1);
+                } else if (href.includes('/tags/')) {
+                    const match = href.match(/\/tags\/([^\/\?]+)/);
+                    if (match) tagName = decodeURIComponent(match[1]);
+                }
+
+                if (tagName) {
+                    link.setAttribute('href', this.getTagUrl(tagName, instance));
+                    link.setAttribute('data-tag', tagName);
+                    link.setAttribute('data-instance', instance);
+                    link.classList.add('hashtag');
+                    link.removeAttribute('target');
+                    link.removeAttribute('rel');
+                }
+            } else if (text.startsWith('@') || href.includes('/@') || rel.includes('mention')) {
+                let username = '';
+                let userInstance = instance;
+
+                if (text.startsWith('@')) {
+                    const parts = text.substring(1).split('@');
+                    username = parts[0];
+                    if (parts[1]) userInstance = parts[1];
+                }
+
+                if (!username && href.includes('/@')) {
+                    try {
+                        const url = new URL(href);
+                        userInstance = url.hostname;
+                        const pathMatch = url.pathname.match(/\/@([^\/]+)/);
+                        if (pathMatch) username = pathMatch[1];
+                    } catch (e) {}
+                }
+
+                if (username) {
+                    link.setAttribute('href', `?instance=${userInstance}&user=${username}`);
+                    link.setAttribute('data-username', username);
+                    link.setAttribute('data-instance', userInstance);
+                    link.classList.add('mention');
+                    link.removeAttribute('target');
+                    link.removeAttribute('rel');
+                } else {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                }
+            } else {
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
+            }
+        });
+
+        return div.innerHTML;
+    }
+
+    bindContentLinks(container, instance) {
+        container.querySelectorAll('a.hashtag[data-tag]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    const tag = link.getAttribute('data-tag');
+                    const tagInstance = link.getAttribute('data-instance') || instance;
+                    this.instance = tagInstance;
+                    this.elements.instanceInput.value = tagInstance;
+                    this.loadTagTimeline(tag);
+                }
+            });
+        });
+
+        container.querySelectorAll('a.mention[data-username]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    const username = link.getAttribute('data-username');
+                    const userInstance = link.getAttribute('data-instance') || instance;
+                    this.instance = userInstance;
+                    this.elements.instanceInput.value = userInstance;
+                    this.loadUserProfileByAcct(username);
+                }
+            });
+        });
+
+        container.querySelectorAll('a.user-link[href^="?"], a.avatar-link[href^="?"]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    const href = link.getAttribute('href');
+                    const params = new URLSearchParams(href.replace('?', ''));
+                    const inst = params.get('instance');
+                    const usr = params.get('user');
+
+                    if (inst && usr) {
+                        this.instance = inst;
+                        this.elements.instanceInput.value = inst;
+                        this.loadUserProfileByAcct(usr);
+                    }
+                }
+            });
+        });
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'now';
+        if (diffMins < 60) return `${diffMins}m`;
+        if (diffHours < 24) return `${diffHours}h`;
+        if (diffDays < 7) return `${diffDays}d`;
+
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    createPostElement(post, currentInstance) {
+        const article = document.createElement('article');
+        article.className = 'post';
+
+        const account = post.reblog ? post.reblog.account : post.account;
+        const content = post.reblog ? post.reblog : post;
+        const parsed = this.parseAcct(account.acct, currentInstance);
+        const profileUrl = this.getProfileUrl(account.acct, currentInstance);
+        const postUrl = this.getPostUrl(account.acct, content.id, currentInstance);
+
+        let headerHTML = '';
+        if (post.reblog) {
+            const boosterName = this.parseContent(post.account.display_name || post.account.username, post.account.emojis);
+            const boosterUrl = this.getProfileUrl(post.account.acct, currentInstance);
+            headerHTML = `<div class="text-xs dim mb-2"><span class="prompt">>></span> <a href="${boosterUrl}" class="user-link" data-profile-url="${boosterUrl}">${boosterName}</a> boosted</div>`;
+        }
+
+        const mediaHTML = content.media_attachments.length > 0
+            ? content.media_attachments.map(media => {
+                if (media.type === 'image') {
+                    return `<img src="${media.preview_url || media.url}" alt="${this.escapeHtml(media.description || 'Image')}" class="post-image" loading="lazy" onclick="window.open('${media.url}', '_blank')">`;
+                }
+                return '';
+            }).join('')
+            : '';
+
+        const visibilityBadge = content.visibility !== 'public'
+            ? `<span class="badge ml-2">${content.visibility}</span>`
+            : '';
+
+        const displayName = this.parseContent(account.display_name || account.username, account.emojis);
+
+        article.innerHTML = `
+            ${headerHTML}
+            <div class="flex gap-3">
+                <a href="${profileUrl}" class="avatar-link" data-profile-url="${profileUrl}">
+                    <img src="${account.avatar}" alt="${this.escapeHtml(account.username)}" class="avatar avatar-clickable" loading="lazy">
+                </a>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <a href="${profileUrl}" class="font-semibold user-link text-sm" data-profile-url="${profileUrl}">${displayName}</a>
+                        <a href="${profileUrl}" class="dim text-xs user-link" data-profile-url="${profileUrl}">@${this.escapeHtml(parsed.username)}@${parsed.instance}</a>
+                        ${visibilityBadge}
+                        <span class="dim text-xs">| ${this.formatDate(content.created_at)}</span>
+                    </div>
+                    <div class="post-content mb-3 text-sm">${this.parseContent(content.content, content.emojis, currentInstance)}</div>
+                    ${mediaHTML}
+                    <div class="mt-3 pt-3 border-t border-[#1a1a1a]">
+                        <span class="stats-item">replies:${content.replies_count}</span>
+                        <span class="stats-item">boosts:${content.reblogs_count}</span>
+                        <span class="stats-item">favs:${content.favourites_count}</span>
+                        <a href="${postUrl}" class="stats-item clickable cyan" data-post-url="${postUrl}">> open</a>
+                        <a href="${content.url}" target="_blank" rel="noopener noreferrer" class="stats-item clickable cyan">> ext</a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.bindPostLinks(article, currentInstance);
+
+        return article;
+    }
+
+    bindPostLinks(article, currentInstance) {
+        article.querySelectorAll('[data-profile-url]').forEach(element => {
+            element.addEventListener('click', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    const url = element.getAttribute('data-profile-url');
+                    const params = new URLSearchParams(url.replace('?', ''));
+                    const inst = params.get('instance');
+                    const usr = params.get('user');
+
+                    if (inst && usr) {
+                        this.instance = inst;
+                        this.elements.instanceInput.value = inst;
+                        this.loadUserProfileByAcct(usr);
+                    }
+                }
+            });
+        });
+
+        article.querySelectorAll('[data-post-url]').forEach(element => {
+            element.addEventListener('click', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    const url = element.getAttribute('data-post-url');
+                    const params = new URLSearchParams(url.replace('?', ''));
+                    const inst = params.get('instance');
+                    const usr = params.get('user');
+                    const postId = params.get('post');
+
+                    if (inst && usr && postId) {
+                        this.loadSinglePost(inst, usr, postId);
+                    }
+                }
+            });
+        });
+
+        article.querySelectorAll('a.hashtag[data-tag]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    const tag = link.getAttribute('data-tag');
+                    const tagInstance = link.getAttribute('data-instance') || currentInstance;
+                    this.instance = tagInstance;
+                    this.elements.instanceInput.value = tagInstance;
+                    this.loadTagTimeline(tag);
+                }
+            });
+        });
+
+        article.querySelectorAll('a.mention[data-username]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                    e.preventDefault();
+                    const username = link.getAttribute('data-username');
+                    const userInstance = link.getAttribute('data-instance') || currentInstance;
+                    this.instance = userInstance;
+                    this.elements.instanceInput.value = userInstance;
+                    this.loadUserProfileByAcct(username);
+                }
+            });
+        });
+    }
+
+    renderPosts(posts, instance) {
+        const fragment = document.createDocumentFragment();
+        posts.forEach(post => {
+            fragment.appendChild(this.createPostElement(post, instance));
+        });
+        this.elements.timeline.appendChild(fragment);
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+const mastodonBrowser = new MastodonBrowser();
+</script>
+</body>
+</html>
