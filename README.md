@@ -4,6 +4,12 @@ A lightweight, privacy-focused web application for browsing Mastodon public time
 
 **Demo**: [https://xsukax.github.io/xsukax-Mastodon-Browser](https://xsukax.github.io/xsukax-Mastodon-Browser)
 
+**My Profile Demo**: [https://xsukax.github.io/xsukax-Mastodon-Browser/?instance=infosec.exchange&user=xsukax](https://xsukax.github.io/xsukax-Mastodon-Browser/?instance=infosec.exchange&user=xsukax)
+
+**Post Demo**: [https://xsukax.github.io/xsukax-Mastodon-Browser/?instance=infosec.exchange&user=xsukax&post=115641199928970697](https://xsukax.github.io/xsukax-Mastodon-Browser/?instance=infosec.exchange&user=xsukax&post=115641199928970697)
+
+**HashTag Demo**: [https://xsukax.github.io/xsukax-Mastodon-Browser/?instance=infosec.exchange&tag=xsukax](https://xsukax.github.io/xsukax-Mastodon-Browser/?instance=infosec.exchange&tag=xsukax)
+
 ## Project Overview
 
 xsukax Mastodon Browser is a client-side web application designed to provide anonymous, read-only access to public content from any Mastodon instance. Built as a single HTML file with embedded JavaScript and CSS, this browser enables users to explore the federated social network ecosystem without creating accounts, logging in, or installing native applications.
